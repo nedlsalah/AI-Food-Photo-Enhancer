@@ -1,0 +1,5 @@
+{
+  "name": "AI Food Photo Enhancer",
+  "description": "Upload a food photo, choose a style, and let AI transform it into a professional, studio-quality image ready for menus and social media.",
+  "requestFramePermissions": []
+}

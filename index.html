@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Food Photo Enhancer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="index.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/genai": "https://esm.sh/@google/genai@^0.14.0"
+        }
+      }
+    </script>
+    <script type="module" src="index.tsx"></script>
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>AI Food Photo Enhancer</h1>
+            <p>Turn your simple food photos into stunning, professional images.</p>
+        </header>
+        <main>
+            <div id="controls">
+                <section class="card">
+                    <h2>1. Upload Your Photo</h2>
+                    <div id="drop-zone" role="button" aria-label="Upload photo drop zone">
+                        <div id="drop-zone-prompt">
+                            <input type="file" id="file-input" accept="image/jpeg, image/png" hidden>
+                            <img src="https://storage.googleapis.com/gemini-ui-params/images/upload_icon.svg" alt="Upload Icon" class="upload-icon">
+                            <p><strong>Drag & drop</strong> your photo here, or <strong>click to browse</strong>.</p>
+                            <small>Supports JPG and PNG files.</small>
+                        </div>
+                        <div id="drop-zone-preview" class="hidden">
+                           <img id="preview-image" src="" alt="Uploaded image preview">
+                           <button id="change-photo-btn" class="button-secondary">Change Photo</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="card">
+                    <h2 id="style-selector-heading">2. Choose an Enhancement Style</h2>
+                    <div id="style-selector" role="radiogroup" aria-labelledby="style-selector-heading">
+                        <div class="style-option">
+                            <input type="radio" id="style-minimalist" name="style" value="minimalist">
+                            <label for="style-minimalist">
+                                <strong>Minimalist Studio</strong>
+                                <span>Clean background & soft lighting.</span>
+                            </label>
+                        </div>
+                        <div class="style-option">
+                            <input type="radio" id="style-rustic" name="style" value="rustic">
+                            <label for="style-rustic">
+                                <strong>Warm Rustic</strong>
+                                <span>Cozy, artisanal feel with natural textures.</span>
+                            </label>
+                        </div>
+                        <div class="style-option">
+                            <input type="radio" id="style-dark" name="style" value="dark">
+                            <label for="style-dark">
+                                <strong>Luxury Dark</strong>
+                                <span>Dramatic, high-end spotlight effect.</span>
+                            </label>
+                        </div>
+                        <div class="style-option">
+                            <input type="radio" id="style-bright" name="style" value="bright">
+                            <label for="style-bright">
+                                <strong>Bright & Airy</strong>
+                                <span>Fresh, vibrant, and social-media ready.</span>
+                            </label>
+                        </div>
+                    </div>
+                </section>
+                
+                <div id="error-message" class="error-message hidden" role="alert"></div>
+                <button id="enhance-btn" disabled>Enhance Photo</button>
+            </div>
+
+            <div id="results-container" class="hidden" aria-live="polite">
+                 <div class="card">
+                     <h2>Results</h2>
+                     <div class="image-comparison">
+                         <div id="original-image-wrapper">
+                             <h3>Original</h3>
+                             <img id="original-image" src="" alt="Original user-uploaded food photo.">
+                         </div>
+                         <div id="enhanced-image-wrapper">
+                             <h3>Enhanced</h3>
+                             <img id="enhanced-image" src="" alt="AI-enhanced food photo.">
+                             <a id="download-btn" href="#" download="enhanced-photo.png" class="hidden" role="button">Download Image</a>
+                         </div>
+                     </div>
+                 </div>
+            </div>
+        </main>
+        <footer>
+            <p>Powered by Google Gemini</p>
+        </footer>
+    </div>
+    <div id="loader" class="hidden" role="status" aria-label="Processing your image">
+        <div class="spinner"></div>
+        <p>Our AI chef is plating your photo...</p>
+    </div>
+</body>
+</html>
