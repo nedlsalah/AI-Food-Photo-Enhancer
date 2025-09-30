@@ -18,13 +18,11 @@ const previewImage = document.getElementById('preview-image') as HTMLImageElemen
 const changePhotoBtn = document.getElementById('change-photo-btn');
 const resultsGrid = document.getElementById('results-grid');
 const downloadAllBtn = document.getElementById('download-all-btn') as HTMLButtonElement;
-const styleSelectionGrid = document.getElementById('style-selection-grid');
 const customPromptInput = document.getElementById('custom-prompt-input') as HTMLTextAreaElement;
 
 // --- STATE MANAGEMENT ---
 let uploadedFile: File | null = null;
 let originalImageURL: string = '';
-const selectedStyles = new Set<string>();
 type GeneratedResult = {
     status: 'fulfilled' | 'rejected';
     styleName: string;
@@ -51,38 +49,6 @@ const STYLE_PROMPTS = {
     dynamic: { title: 'Dynamic Studio Shot', prompt: `Recreate this food photograph as a dynamic studio action shot. Capture a moment of motion, like a sauce being drizzled, steam rising, powder being dusted, or a liquid splashing. Use high-speed photography techniques with studio lighting to freeze the action crisply. The background should be clean and non-distracting to emphasize the movement. The final image should be energetic, dramatic, and high-impact, with no text or watermarks.` },
     graphic: { title: 'Graphic Composition', prompt: `Transform this food photograph into a modern, graphic composition. Arrange the food or its components in a deliberate, artful pattern or a minimalist layout on a solid, bold-colored background. Use hard, direct studio lighting to create defined shadows and a contemporary, pop-art feel. The focus should be on shape, color, and repetition. The final image should be stylish, bold, and visually striking, with no text or watermarks.` },
 };
-
-// --- INITIALIZATION ---
-function renderStyleSelector() {
-    if (!styleSelectionGrid) return;
-    styleSelectionGrid.innerHTML = '';
-    // Render predefined styles
-    for (const [styleName, { title }] of Object.entries(STYLE_PROMPTS)) {
-        const card = document.createElement('div');
-        card.className = 'style-card';
-        card.dataset.style = styleName;
-        card.innerHTML = `
-            <div class="style-card-checkbox"></div>
-            <label>${title}</label>
-        `;
-        card.addEventListener('click', () => toggleStyleSelection(styleName, card));
-        styleSelectionGrid.appendChild(card);
-    }
-    // Render custom style
-    const customCard = document.createElement('div');
-    customCard.className = 'style-card custom-style-card';
-    customCard.dataset.style = 'custom';
-    customCard.innerHTML = `
-        <div class="custom-header">
-            <div class="style-card-checkbox"></div>
-            <label>Custom Style</label>
-        </div>
-        <textarea id="custom-prompt-input" placeholder="Describe your desired enhancement..." rows="3"></textarea>
-    `;
-    styleSelectionGrid.appendChild(customCard);
-    customCard.querySelector('.custom-header').addEventListener('click', () => toggleStyleSelection('custom', customCard));
-}
-
 
 // --- EVENT LISTENERS ---
 dropZone.addEventListener('click', () => fileInput.click());
@@ -129,14 +95,7 @@ function clearError() {
 
 function updateEnhanceButtonState() {
     const hasFile = !!uploadedFile;
-    const hasSelection = selectedStyles.size > 0;
-    enhanceBtn.disabled = !hasFile || !hasSelection;
-
-    if (hasSelection) {
-        enhanceBtn.textContent = `Generate ${selectedStyles.size} Style(s)`;
-    } else {
-        enhanceBtn.textContent = 'Select a Style to Generate';
-    }
+    enhanceBtn.disabled = !hasFile;
 }
 
 function showLoader(show: boolean, text: string = 'Processing...') {
@@ -182,17 +141,6 @@ function fileToBase64(file: File): Promise<string> {
         };
         reader.onerror = (error) => reject(error);
     });
-}
-
-function toggleStyleSelection(styleName: string, cardElement: HTMLElement) {
-    if (selectedStyles.has(styleName)) {
-        selectedStyles.delete(styleName);
-        cardElement.classList.remove('selected');
-    } else {
-        selectedStyles.add(styleName);
-        cardElement.classList.add('selected');
-    }
-    updateEnhanceButtonState();
 }
 
 function downloadAll() {
@@ -253,7 +201,7 @@ async function generateSingleStyle(styleName: string, styleTitle: string, prompt
             downloadLink.href = src;
             downloadLink.download = fileName;
             downloadLink.textContent = 'Download';
-            downloadLink.classList.add('button', 'button-small');
+            downloadLink.classList.add('button', 'button-secondary', 'button-small');
             downloadContainer.appendChild(downloadLink);
 
             return {
@@ -281,8 +229,8 @@ async function generateSingleStyle(styleName: string, styleTitle: string, prompt
 }
 
 async function generateSelectedStyles() {
-    if (!uploadedFile || selectedStyles.size === 0) {
-        displayError('Please upload a photo and select at least one style.');
+    if (!uploadedFile) {
+        displayError('Please upload a photo to start.');
         return;
     }
 
@@ -294,9 +242,15 @@ async function generateSelectedStyles() {
     resultsContainer.classList.remove('hidden');
     downloadAllBtn.classList.add('hidden');
     resultsContainer.scrollIntoView({ behavior: 'smooth' });
+    
+    const stylesToGenerate = Object.keys(STYLE_PROMPTS);
+    const customPromptValue = customPromptInput.value.trim();
+    if (customPromptValue) {
+        stylesToGenerate.push('custom');
+    }
 
     // Render placeholders
-    selectedStyles.forEach(styleName => {
+    stylesToGenerate.forEach(styleName => {
         const title = styleName === 'custom' ? 'Custom Style' : STYLE_PROMPTS[styleName]?.title || 'Unknown Style';
         const placeholder = document.createElement('div');
         placeholder.className = 'result-item';
@@ -316,21 +270,13 @@ async function generateSelectedStyles() {
         const mimeType = uploadedFile.type;
         showLoader(false);
 
-        const generationPromises = Array.from(selectedStyles).map(styleName => {
+        const generationPromises = stylesToGenerate.map(styleName => {
             const isCustom = styleName === 'custom';
             const styleInfo = isCustom ? { title: 'Custom Style' } : STYLE_PROMPTS[styleName];
             const prompt = isCustom 
-                ? (document.getElementById('custom-prompt-input') as HTMLTextAreaElement).value 
+                ? customPromptValue
                 : styleInfo.prompt;
             
-            if (!prompt) {
-                 // Skip if custom prompt is empty
-                const resultItem = document.querySelector(`.result-item[data-style="custom"]`);
-                resultItem.querySelector('.image-container').innerHTML = '<p>Custom prompt cannot be empty.</p>';
-                resultItem.classList.add('error');
-                return Promise.resolve({ status: 'rejected', styleName, styleTitle: 'Custom Style', reason: 'Empty prompt'});
-            }
-
             return generateSingleStyle(styleName, styleInfo.title, prompt, base64Data, mimeType);
         });
 
@@ -350,6 +296,3 @@ async function generateSelectedStyles() {
         updateEnhanceButtonState();
     }
 }
-
-// --- ON SCRIPT LOAD ---
-document.addEventListener('DOMContentLoaded', renderStyleSelector);

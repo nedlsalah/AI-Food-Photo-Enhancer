@@ -78,6 +78,18 @@ main {
     font-weight: 600;
 }
 
+.card h2 small {
+    font-weight: 400;
+    color: var(--light-text-color);
+    font-size: 1.1rem;
+}
+
+.card .description {
+    color: var(--light-text-color);
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
 #drop-zone {
     border: 3px dashed var(--border-color);
     border-radius: var(--border-radius);
@@ -127,83 +139,23 @@ main {
     object-fit: cover;
 }
 
-#style-selection-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
-}
-
-.style-card {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
-    font-size: 0.9rem;
-    user-select: none;
-}
-.style-card:hover {
-    background-color: #2a2a2a;
-}
-.style-card.selected {
-    border-color: var(--primary-color);
-    background-color: rgba(255, 107, 107, 0.1);
-}
-
-.style-card-checkbox {
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--border-color);
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: border-color 0.2s ease;
-    flex-shrink: 0;
-}
-.style-card.selected .style-card-checkbox {
-    border-color: var(--primary-color);
-    background-color: var(--primary-color);
-}
-.style-card-checkbox::after {
-    content: '✔';
-    color: var(--card-background-color);
-    font-size: 14px;
-    opacity: 0;
-    transition: opacity 0.2s ease;
-}
-.style-card.selected .style-card-checkbox::after {
-    opacity: 1;
-}
-.custom-style-card {
-    grid-column: 1 / -1;
-    flex-direction: column;
-    align-items: stretch;
-}
-.custom-style-card .custom-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    width: 100%;
-}
 #custom-prompt-input {
     width: 100%;
     background-color: #2a2a2a;
     border: 1px solid var(--border-color);
     color: var(--text-color);
     border-radius: 6px;
-    padding: 0.5rem;
+    padding: 0.75rem;
     font-family: inherit;
     font-size: 0.9rem;
     resize: vertical;
-    margin-top: 0.75rem;
-    display: none;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
 }
-.custom-style-card.selected #custom-prompt-input {
-    display: block;
+
+#custom-prompt-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    background-color: #333;
 }
 
 
@@ -315,7 +267,7 @@ button:disabled {
     height: 100%;
     object-fit: cover;
     border-radius: 8px;
-    transition: opacity 0.2s ease-in-out;
+    transition: opacity 0.3s ease-in-out;
 }
 
 .result-item .original-image {
@@ -326,7 +278,7 @@ button:disabled {
     z-index: 2;
 }
 .result-item .image-container:hover .original-image {
-    opacity: 1;
+    opacity: 0.7;
 }
 .result-item .button-small {
     padding: 0.6rem;
@@ -388,9 +340,6 @@ button:disabled {
     }
     .card {
         padding: 1.5rem;
-    }
-    #style-selection-grid {
-        grid-template-columns: 1fr;
     }
 }
 
