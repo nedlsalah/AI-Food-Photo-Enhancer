@@ -18,11 +18,13 @@ const previewImage = document.getElementById('preview-image') as HTMLImageElemen
 const changePhotoBtn = document.getElementById('change-photo-btn');
 const resultsGrid = document.getElementById('results-grid');
 const downloadAllBtn = document.getElementById('download-all-btn') as HTMLButtonElement;
-const progressBar = document.getElementById('progress-bar') as HTMLDivElement;
-
+const styleSelectionGrid = document.getElementById('style-selection-grid');
+const customPromptInput = document.getElementById('custom-prompt-input') as HTMLTextAreaElement;
 
 // --- STATE MANAGEMENT ---
 let uploadedFile: File | null = null;
+let originalImageURL: string = '';
+const selectedStyles = new Set<string>();
 type GeneratedResult = {
     status: 'fulfilled' | 'rejected';
     styleName: string;
@@ -49,6 +51,37 @@ const STYLE_PROMPTS = {
     dynamic: { title: 'Dynamic Studio Shot', prompt: `Recreate this food photograph as a dynamic studio action shot. Capture a moment of motion, like a sauce being drizzled, steam rising, powder being dusted, or a liquid splashing. Use high-speed photography techniques with studio lighting to freeze the action crisply. The background should be clean and non-distracting to emphasize the movement. The final image should be energetic, dramatic, and high-impact, with no text or watermarks.` },
     graphic: { title: 'Graphic Composition', prompt: `Transform this food photograph into a modern, graphic composition. Arrange the food or its components in a deliberate, artful pattern or a minimalist layout on a solid, bold-colored background. Use hard, direct studio lighting to create defined shadows and a contemporary, pop-art feel. The focus should be on shape, color, and repetition. The final image should be stylish, bold, and visually striking, with no text or watermarks.` },
 };
+
+// --- INITIALIZATION ---
+function renderStyleSelector() {
+    if (!styleSelectionGrid) return;
+    styleSelectionGrid.innerHTML = '';
+    // Render predefined styles
+    for (const [styleName, { title }] of Object.entries(STYLE_PROMPTS)) {
+        const card = document.createElement('div');
+        card.className = 'style-card';
+        card.dataset.style = styleName;
+        card.innerHTML = `
+            <div class="style-card-checkbox"></div>
+            <label>${title}</label>
+        `;
+        card.addEventListener('click', () => toggleStyleSelection(styleName, card));
+        styleSelectionGrid.appendChild(card);
+    }
+    // Render custom style
+    const customCard = document.createElement('div');
+    customCard.className = 'style-card custom-style-card';
+    customCard.dataset.style = 'custom';
+    customCard.innerHTML = `
+        <div class="custom-header">
+            <div class="style-card-checkbox"></div>
+            <label>Custom Style</label>
+        </div>
+        <textarea id="custom-prompt-input" placeholder="Describe your desired enhancement..." rows="3"></textarea>
+    `;
+    styleSelectionGrid.appendChild(customCard);
+    customCard.querySelector('.custom-header').addEventListener('click', () => toggleStyleSelection('custom', customCard));
+}
 
 
 // --- EVENT LISTENERS ---
@@ -79,7 +112,7 @@ dropZone.addEventListener('drop', (e) => {
     }
 });
 
-enhanceBtn.addEventListener('click', generateAllStyles);
+enhanceBtn.addEventListener('click', generateSelectedStyles);
 downloadAllBtn.addEventListener('click', downloadAll);
 
 
@@ -95,15 +128,20 @@ function clearError() {
 }
 
 function updateEnhanceButtonState() {
-    enhanceBtn.disabled = !uploadedFile;
+    const hasFile = !!uploadedFile;
+    const hasSelection = selectedStyles.size > 0;
+    enhanceBtn.disabled = !hasFile || !hasSelection;
+
+    if (hasSelection) {
+        enhanceBtn.textContent = `Generate ${selectedStyles.size} Style(s)`;
+    } else {
+        enhanceBtn.textContent = 'Select a Style to Generate';
+    }
 }
 
 function showLoader(show: boolean, text: string = 'Processing...') {
     loaderText.textContent = text;
     loader.classList.toggle('hidden', !show);
-    if (show) {
-        progressBar.style.width = '0%';
-    }
 }
 
 function handleFile(file: File) {
@@ -116,13 +154,10 @@ function handleFile(file: File) {
     
     const reader = new FileReader();
     reader.onload = (e) => {
-        const imageUrl = e.target?.result as string;
-        
-        previewImage.src = imageUrl;
+        originalImageURL = e.target?.result as string;
+        previewImage.src = originalImageURL;
         dropZonePrompt.classList.add('hidden');
         dropZonePreview.classList.remove('hidden');
-        
-        // Hide previous results
         resultsContainer.classList.add('hidden');
         resultsGrid.innerHTML = '';
         generatedResults = [];
@@ -149,47 +184,15 @@ function fileToBase64(file: File): Promise<string> {
     });
 }
 
-function renderResults() {
-    resultsGrid.innerHTML = '';
-    
-    generatedResults.forEach(result => {
-        const item = document.createElement('div');
-        item.classList.add('result-item');
-
-        const title = document.createElement('h3');
-        title.textContent = result.styleTitle;
-
-        if (result.status === 'fulfilled' && result.src && result.fileName) {
-            const img = document.createElement('img');
-            img.src = result.src;
-            img.alt = `Enhanced image in ${result.styleTitle} style`;
-
-            const downloadLink = document.createElement('a');
-            downloadLink.href = result.src;
-            downloadLink.download = result.fileName;
-            downloadLink.textContent = 'Download';
-            downloadLink.classList.add('button', 'button-small');
-
-            item.appendChild(title);
-            item.appendChild(img);
-            item.appendChild(downloadLink);
-        } else {
-            item.classList.add('error');
-            const errorText = document.createElement('p');
-            errorText.textContent = 'Failed to generate this style. Please try again.';
-            item.appendChild(title);
-            item.appendChild(errorText);
-        }
-        resultsGrid.appendChild(item);
-    });
-
-    resultsContainer.classList.remove('hidden');
-    if (generatedResults.some(r => r.status === 'fulfilled')) {
-      downloadAllBtn.classList.remove('hidden');
+function toggleStyleSelection(styleName: string, cardElement: HTMLElement) {
+    if (selectedStyles.has(styleName)) {
+        selectedStyles.delete(styleName);
+        cardElement.classList.remove('selected');
     } else {
-      downloadAllBtn.classList.add('hidden');
+        selectedStyles.add(styleName);
+        cardElement.classList.add('selected');
     }
-    resultsContainer.scrollIntoView({ behavior: 'smooth' });
+    updateEnhanceButtonState();
 }
 
 function downloadAll() {
@@ -208,10 +211,78 @@ function downloadAll() {
     });
 }
 
-// --- CORE FUNCTION ---
-async function generateAllStyles() {
-    if (!uploadedFile) {
-        displayError('Please upload a photo first.');
+
+// --- CORE FUNCTIONS ---
+
+async function generateSingleStyle(styleName: string, styleTitle: string, prompt: string, base64Data: string, mimeType: string) {
+    const resultItem = document.querySelector(`.result-item[data-style="${styleName}"]`);
+    const imageContainer = resultItem?.querySelector('.image-container');
+    const downloadContainer = resultItem?.querySelector('.download-container');
+
+    if (!resultItem || !imageContainer || !downloadContainer) return;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash-image-preview',
+            contents: {
+                parts: [
+                    { inlineData: { data: base64Data, mimeType } },
+                    { text: prompt },
+                ],
+            },
+            config: {
+                responseModalities: [Modality.IMAGE, Modality.TEXT],
+            },
+        });
+
+        const parts = response.candidates?.[0]?.content?.parts;
+        const imagePart = parts?.find(p => p.inlineData);
+
+        if (imagePart?.inlineData) {
+            const { data: enhancedBase64, mimeType: enhancedMimeType } = imagePart.inlineData;
+            const src = `data:${enhancedMimeType};base64,${enhancedBase64}`;
+            const extension = enhancedMimeType.split('/')[1] || 'jpg';
+            const fileName = `enhanced-${uploadedFile.name.split('.')[0]}-${styleName}.${extension}`;
+
+            imageContainer.innerHTML = `
+                <img class="generated-image" src="${src}" alt="Enhanced image in ${styleTitle} style">
+                <img class="original-image" src="${originalImageURL}" alt="Original image">
+            `;
+            
+            const downloadLink = document.createElement('a');
+            downloadLink.href = src;
+            downloadLink.download = fileName;
+            downloadLink.textContent = 'Download';
+            downloadLink.classList.add('button', 'button-small');
+            downloadContainer.appendChild(downloadLink);
+
+            return {
+                status: 'fulfilled',
+                styleName,
+                styleTitle,
+                src,
+                fileName,
+            };
+        } else {
+            const refusalText = parts?.find(p => p.text)?.text || 'No image data returned.';
+            throw new Error(refusalText);
+        }
+    } catch (error) {
+        imageContainer.innerHTML = `<p>Failed to generate this style. Please try again.</p>`;
+        resultItem.classList.add('error');
+        console.error(`Error for style ${styleName}:`, error);
+        return {
+            status: 'rejected',
+            styleName,
+            styleTitle,
+            reason: error instanceof Error ? error.message : String(error),
+        };
+    }
+}
+
+async function generateSelectedStyles() {
+    if (!uploadedFile || selectedStyles.size === 0) {
+        displayError('Please upload a photo and select at least one style.');
         return;
     }
 
@@ -220,84 +291,65 @@ async function generateAllStyles() {
     clearError();
     resultsGrid.innerHTML = '';
     generatedResults = [];
-    resultsContainer.classList.add('hidden');
+    resultsContainer.classList.remove('hidden');
     downloadAllBtn.classList.add('hidden');
+    resultsContainer.scrollIntoView({ behavior: 'smooth' });
+
+    // Render placeholders
+    selectedStyles.forEach(styleName => {
+        const title = styleName === 'custom' ? 'Custom Style' : STYLE_PROMPTS[styleName]?.title || 'Unknown Style';
+        const placeholder = document.createElement('div');
+        placeholder.className = 'result-item';
+        placeholder.dataset.style = styleName;
+        placeholder.innerHTML = `
+            <h3>${title}</h3>
+            <div class="image-container">
+                <div class="spinner"></div>
+            </div>
+            <div class="download-container"></div>
+        `;
+        resultsGrid.appendChild(placeholder);
+    });
 
     try {
         const base64Data = await fileToBase64(uploadedFile);
         const mimeType = uploadedFile.type;
-        const styleEntries = Object.entries(STYLE_PROMPTS);
+        showLoader(false);
 
-        let completedCount = 0;
-        
-        const generationPromises = styleEntries.map(([styleName, styleData]) => {
-            return ai.models.generateContent({
-                model: 'gemini-2.5-flash-image-preview',
-                contents: {
-                    parts: [
-                        { inlineData: { data: base64Data, mimeType } },
-                        { text: styleData.prompt },
-                    ],
-                },
-                config: {
-                    responseModalities: [Modality.IMAGE, Modality.TEXT],
-                },
-            }).then(response => {
-                completedCount++;
-                const progress = (completedCount / styleEntries.length) * 100;
-                progressBar.style.width = `${progress}%`;
-                showLoader(true, `Generating... (${completedCount}/${styleEntries.length})`);
-                
-                const parts = response.candidates?.[0]?.content?.parts;
-                let enhancedBase64: string | null = null;
-                let enhancedMimeType: string | null = null;
+        const generationPromises = Array.from(selectedStyles).map(styleName => {
+            const isCustom = styleName === 'custom';
+            const styleInfo = isCustom ? { title: 'Custom Style' } : STYLE_PROMPTS[styleName];
+            const prompt = isCustom 
+                ? (document.getElementById('custom-prompt-input') as HTMLTextAreaElement).value 
+                : styleInfo.prompt;
+            
+            if (!prompt) {
+                 // Skip if custom prompt is empty
+                const resultItem = document.querySelector(`.result-item[data-style="custom"]`);
+                resultItem.querySelector('.image-container').innerHTML = '<p>Custom prompt cannot be empty.</p>';
+                resultItem.classList.add('error');
+                return Promise.resolve({ status: 'rejected', styleName, styleTitle: 'Custom Style', reason: 'Empty prompt'});
+            }
 
-                if (parts) {
-                    for (const part of parts) {
-                        if (part.inlineData) {
-                            enhancedBase64 = part.inlineData.data;
-                            enhancedMimeType = part.inlineData.mimeType;
-                            break;
-                        }
-                    }
-                }
-
-                if (enhancedBase64 && enhancedMimeType) {
-                    const extension = enhancedMimeType.split('/')[1] || 'jpg';
-                    return {
-                        status: 'fulfilled',
-                        styleName,
-                        styleTitle: styleData.title,
-                        src: `data:${enhancedMimeType};base64,${enhancedBase64}`,
-                        fileName: `enhanced-${uploadedFile.name.split('.')[0]}-${styleName}.${extension}`
-                    };
-                } else {
-                    const refusalText = parts?.find(p => p.text)?.text || 'No image data returned.';
-                    throw new Error(refusalText);
-                }
-            }).catch(error => {
-                completedCount++;
-                const progress = (completedCount / styleEntries.length) * 100;
-                progressBar.style.width = `${progress}%`;
-                showLoader(true, `Generating... (${completedCount}/${styleEntries.length})`);
-                return {
-                    status: 'rejected',
-                    styleName,
-                    styleTitle: styleData.title,
-                    reason: error.message
-                };
-            });
+            return generateSingleStyle(styleName, styleInfo.title, prompt, base64Data, mimeType);
         });
 
-        generatedResults = await Promise.all(generationPromises);
-        renderResults();
+        const results = await Promise.all(generationPromises);
+        generatedResults = results.filter(r => r) as GeneratedResult[];
+
+        if (generatedResults.some(r => r.status === 'fulfilled')) {
+            downloadAllBtn.classList.remove('hidden');
+        }
 
     } catch (error) {
         console.error('Error during generation process:', error);
         const message = error instanceof Error ? error.message : 'An unknown error occurred. Please try again.';
         displayError(message);
-    } finally {
         showLoader(false);
+    } finally {
         updateEnhanceButtonState();
     }
 }
+
+// --- ON SCRIPT LOAD ---
+document.addEventListener('DOMContentLoaded', renderStyleSelector);

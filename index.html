@@ -21,12 +21,12 @@
     <div id="app">
         <header>
             <h1>AI Food Photo Enhancer</h1>
-            <p>Turn one photo into ten unique, professional images automatically.</p>
+            <p>Turn one photo into multiple unique, professional images automatically.</p>
         </header>
         <main>
-            <div id="controls">
+            <div id="setup-column">
                 <section class="card">
-                    <h2>1. Upload Your Photo</h2>
+                    <h2>1. Upload Photo</h2>
                     <div id="drop-zone" role="button" aria-label="Upload photo drop zone">
                         <div id="drop-zone-prompt">
                             <input type="file" id="file-input" accept="image/jpeg, image/png" hidden>
@@ -40,9 +40,15 @@
                         </div>
                     </div>
                 </section>
+                <section class="card">
+                    <h2>2. Select Styles</h2>
+                    <div id="style-selection-grid">
+                        <!-- Style cards will be injected here by JS -->
+                    </div>
+                </section>
 
                 <div id="error-message" class="error-message hidden" role="alert"></div>
-                <button id="enhance-btn" disabled>Generate 10 Styles</button>
+                <button id="enhance-btn" disabled>Generate</button>
             </div>
 
             <div id="results-container" class="hidden" aria-live="polite">
@@ -63,10 +69,7 @@
     </div>
     <div id="loader" class="hidden" role="status" aria-label="Processing your image">
         <div class="spinner"></div>
-        <p id="loader-text">Our AI chef is plating your photo...</p>
-        <div id="progress-bar-container">
-            <div id="progress-bar"></div>
-        </div>
+        <p id="loader-text">Preparing your image...</p>
     </div>
 </body>
 </html>
